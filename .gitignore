@@ -1,0 +1,96 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.env
+*.local
+*.secret
+*secret*
+*secrets*
+*credential*
+*credentials*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# Business and private data
+data/
+input/
+inputs/
+output/
+outputs/
+reports/
+exports/
+private/
+work/
+tmp/
+temp/
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.xlsm
+*.pdf
+*.docx
+*.pptx
+*.zip
+
+# Local/private planning documents
+SpecDocument.md
+*private*.md
+*confidential*.md
+local-notes.md
+
+# Keep documentation or sample fixtures explicit
+!data/.gitkeep
+!data/sample/
+!data/sample/**
+!samples/
+!samples/**
+!*.example.csv
+!*.sample.csv
+
+# Local Codex and agent configuration
+.agents/
+agents/
+.codex/
+docs/
+AGENTS.md
+Agents.md
+agents/skills/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Node and frontend builds
+node_modules/
+dist/
+build/
+.next/
+.vite/
+coverage/
+
+# Rust
+target/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Codex local backups
+.codex-template-backup-*/
