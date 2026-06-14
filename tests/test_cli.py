@@ -353,6 +353,60 @@ class CliTests(unittest.TestCase):
             self.assertIn("Missing data directory", output)
             self.assertIn("Run codeflow analyze before codeflow serve.", output)
 
+    def test_status_reports_saved_artifacts_and_source_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            app_path = root / "app.py"
+            app_path.write_text(
+                "def load():\n"
+                "    return 1\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(main(["analyze", temp_dir]), 0)
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                result = main(["status", temp_dir])
+
+            output = buffer.getvalue()
+            self.assertEqual(result, 0)
+            self.assertIn("Artifacts: ready", output)
+            self.assertIn("Target functions: 1", output)
+            self.assertIn("- unchanged: 1", output)
+            self.assertIn("- changed: 0", output)
+            self.assertIn("Function summaries: 0 generated / 1 total (1 pending)", output)
+            self.assertIn("AI execution: not executed", output)
+
+            app_path.write_text(
+                "def load():\n"
+                "    return 2\n\n"
+                "def render():\n"
+                "    return load()\n",
+                encoding="utf-8",
+            )
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                result = main(["status", temp_dir])
+
+            output = buffer.getvalue()
+            self.assertEqual(result, 0)
+            self.assertIn("- unchanged: 0", output)
+            self.assertIn("- changed: 1", output)
+            self.assertIn("- new: 1", output)
+
+    def test_status_reports_missing_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                result = main(["status", temp_dir])
+
+            output = buffer.getvalue()
+            self.assertEqual(result, 1)
+            self.assertIn("Artifacts: missing", output)
+            self.assertIn("Missing artifacts:", output)
+
 
 if __name__ == "__main__":
     unittest.main()

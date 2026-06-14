@@ -12,6 +12,7 @@ from codeflow import __version__
 from codeflow.config import DEFAULT_CONFIG
 from codeflow.scanner import ProjectScanner
 from codeflow.serve import ServeLauncher
+from codeflow.status import StatusReporter
 from codeflow.storage import StorageBuilder
 from codeflow.streamlit_analyzer import StreamlitAnalyzer
 
@@ -149,6 +150,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     serve_parser.set_defaults(func=run_serve)
 
+    status_parser = subparsers.add_parser(
+        "status",
+        help="Show saved analysis status and current source differences without calling AI.",
+    )
+    status_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Project directory to inspect. Defaults to the current directory.",
+    )
+    status_parser.set_defaults(func=run_status)
+
     plan_parser = subparsers.add_parser(
         "plan",
         help="Plan AI work without calling AI and write .codeflow/ai_plan.json.",
@@ -221,6 +234,13 @@ def run_serve(args: argparse.Namespace) -> int:
     launcher = ServeLauncher()
     plan = launcher.build_plan(Path(args.path), host=args.host, port=args.port)
     return launcher.run(plan, dry_run=bool(args.dry_run))
+
+
+def run_status(args: argparse.Namespace) -> int:
+    reporter = StatusReporter()
+    status = reporter.build(Path(args.path))
+    print(reporter.format_summary(status))
+    return 1 if status["missing_artifacts"] else 0
 
 
 def run_plan(args: argparse.Namespace) -> int:
