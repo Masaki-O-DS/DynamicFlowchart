@@ -107,6 +107,117 @@ class CliTests(unittest.TestCase):
             self.assertEqual(index["errors"][0]["file"], "broken.py")
             self.assertEqual(index["errors"][0]["error_type"], "SyntaxError")
 
+    def test_streamlit_writes_index_and_extracts_streamlit_features(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "streamlit_app.py").write_text("print('lower priority')\n", encoding="utf-8")
+            (root / "app.py").write_text("print('also lower priority')\n", encoding="utf-8")
+            (root / "dashboard.py").write_text(
+                "import streamlit as st\n\n"
+                "@st.cache_data\n"
+                "def load_data():\n"
+                "    return [1]\n\n"
+                "def clicked():\n"
+                "    st.session_state['clicked'] = True\n\n"
+                "st.set_page_config(page_title='Demo')\n"
+                "st.title('Demo')\n"
+                "value = st.text_input('Name', on_change=clicked)\n"
+                "if st.button('Run', on_click=clicked):\n"
+                "    st.session_state.result = load_data()\n"
+                "st.stop()\n",
+                encoding="utf-8",
+            )
+            (root / "pages").mkdir()
+            (root / "pages" / "details.py").write_text(
+                "import streamlit as st\nst.write('details')\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(main(["streamlit", temp_dir, "--entry", "dashboard.py"]), 0)
+
+            index_path = root / ".codeflow" / "streamlit_index.json"
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+            dashboard = {
+                item["file"]: item for item in index["files"]
+            }["dashboard.py"]
+            apis = {item["api"] for item in dashboard["streamlit_apis"]}
+            callbacks = {item["callback_type"] for item in dashboard["callbacks"]}
+
+            self.assertEqual(index["entrypoint"]["path"], "dashboard.py")
+            self.assertEqual(index["entrypoint"]["source"], "cli")
+            self.assertIn("pages/details.py", index["pages"])
+            self.assertIn("st.set_page_config", apis)
+            self.assertIn("st.title", apis)
+            self.assertIn("st.text_input", apis)
+            self.assertIn("st.button", apis)
+            self.assertIn("st.stop", apis)
+            self.assertIn("st.cache_data", apis)
+            self.assertEqual(callbacks, {"on_click", "on_change"})
+            self.assertTrue(dashboard["session_state"])
+            self.assertEqual(dashboard["caches"][0]["api"], "st.cache_data")
+            self.assertEqual(dashboard["control_flow"][0]["api"], "st.stop")
+
+    def test_streamlit_entrypoint_inference_order(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pages").mkdir()
+            (root / "pages" / "first.py").write_text("import streamlit as st\nst.write('x')\n", encoding="utf-8")
+            (root / "other.py").write_text("import streamlit as st\nst.title('x')\nst.write('x')\n", encoding="utf-8")
+
+            self.assertEqual(main(["streamlit", temp_dir]), 0)
+            index = json.loads((root / ".codeflow" / "streamlit_index.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["entrypoint"]["path"], "pages/first.py")
+            self.assertEqual(index["entrypoint"]["reason"], "pages/*.py")
+
+            (root / "main.py").write_text("print('main')\n", encoding="utf-8")
+            self.assertEqual(main(["streamlit", temp_dir]), 0)
+            index = json.loads((root / ".codeflow" / "streamlit_index.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["entrypoint"]["path"], "main.py")
+            self.assertEqual(index["entrypoint"]["reason"], "main.py")
+
+            (root / "app.py").write_text("print('app')\n", encoding="utf-8")
+            self.assertEqual(main(["streamlit", temp_dir]), 0)
+            index = json.loads((root / ".codeflow" / "streamlit_index.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["entrypoint"]["path"], "app.py")
+            self.assertEqual(index["entrypoint"]["reason"], "app.py")
+
+            (root / "streamlit_app.py").write_text("print('streamlit')\n", encoding="utf-8")
+            self.assertEqual(main(["streamlit", temp_dir]), 0)
+            index = json.loads((root / ".codeflow" / "streamlit_index.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["entrypoint"]["path"], "streamlit_app.py")
+            self.assertEqual(index["entrypoint"]["reason"], "streamlit_app.py")
+
+            (root / "codeflow.yaml").write_text(
+                "project:\n  entrypoint: other.py\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(main(["streamlit", temp_dir]), 0)
+            index = json.loads((root / ".codeflow" / "streamlit_index.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["entrypoint"]["path"], "other.py")
+            self.assertEqual(index["entrypoint"]["source"], "config")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "configured.py").write_text(
+                "import streamlit as st\nst.set_page_config(page_title='Configured')\n",
+                encoding="utf-8",
+            )
+            (root / "busy.py").write_text(
+                "import streamlit as st\nst.title('Busy')\nst.write('x')\nst.button('Run')\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(main(["streamlit", temp_dir]), 0)
+            index = json.loads((root / ".codeflow" / "streamlit_index.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["entrypoint"]["path"], "configured.py")
+            self.assertEqual(index["entrypoint"]["reason"], "st.set_page_config")
+
+            (root / "configured.py").write_text("print('plain')\n", encoding="utf-8")
+            self.assertEqual(main(["streamlit", temp_dir]), 0)
+            index = json.loads((root / ".codeflow" / "streamlit_index.json").read_text(encoding="utf-8"))
+            self.assertEqual(index["entrypoint"]["path"], "busy.py")
+            self.assertEqual(index["entrypoint"]["reason"], "streamlit_api_count")
+
 
 if __name__ == "__main__":
     unittest.main()
