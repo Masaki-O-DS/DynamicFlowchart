@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -29,6 +30,40 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(main(["init", temp_dir]), 1)
             self.assertEqual(config_path.read_text(encoding="utf-8"), "existing: true\n")
+
+    def test_scan_writes_project_index_with_python_files_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "app.py").write_text("print('hello')\n", encoding="utf-8")
+            (root / "README.md").write_text("# sample\n", encoding="utf-8")
+            (root / "test_app.py").write_text("def test_app():\n    pass\n", encoding="utf-8")
+            (root / "service_test.py").write_text("def test_service():\n    pass\n", encoding="utf-8")
+            (root / ".env").write_text("TOKEN=x\n", encoding="utf-8")
+            (root / "src").mkdir()
+            (root / "src" / "worker.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+            (root / "tests").mkdir()
+            (root / "tests" / "test_worker.py").write_text("def test_run():\n    pass\n", encoding="utf-8")
+            (root / ".streamlit").mkdir()
+            (root / ".streamlit" / "secrets.toml").write_text("token = 'x'\n", encoding="utf-8")
+            (root / ".codex").mkdir()
+            (root / ".codex" / "hook.py").write_text("print('local')\n", encoding="utf-8")
+
+            self.assertEqual(main(["scan", temp_dir]), 0)
+
+            index_path = root / ".codeflow" / "project_index.json"
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+            included_paths = {item["path"] for item in index["included_files"]}
+            excluded = {item["path"]: item["reason"] for item in index["excluded_paths"]}
+
+            self.assertEqual(included_paths, {"app.py", "src/worker.py"})
+            self.assertEqual(index["summary"]["included_file_count"], 2)
+            self.assertEqual(excluded["README.md"], "not_python_file")
+            self.assertEqual(excluded["test_app.py"], "excluded_file_pattern")
+            self.assertEqual(excluded["service_test.py"], "excluded_file_pattern")
+            self.assertEqual(excluded[".env"], "excluded_file_pattern")
+            self.assertEqual(excluded["tests"], "excluded_directory")
+            self.assertEqual(excluded[".codex"], "excluded_directory")
+            self.assertEqual(excluded[".streamlit/secrets.toml"], "excluded_file_pattern")
 
 
 if __name__ == "__main__":
