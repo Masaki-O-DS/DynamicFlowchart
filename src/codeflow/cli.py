@@ -7,34 +7,8 @@ from pathlib import Path
 from typing import Sequence
 
 from codeflow import __version__
-
-DEFAULT_CONFIG = """# CodeFlow Viewer configuration
-schema_version: 1
-project:
-  name: ""
-scanner:
-  include:
-    - "**/*.py"
-  exclude_dirs:
-    - test
-    - tests
-    - __pycache__
-    - venv
-    - .venv
-    - .git
-    - node_modules
-  exclude_files:
-    - "test_*.py"
-    - "*_test.py"
-    - ".env"
-    - "*.pem"
-    - "*.key"
-    - "*.crt"
-    - ".streamlit/secrets.toml"
-ai:
-  default_model: "GLM-5"
-  auto_fallback: false
-"""
+from codeflow.config import DEFAULT_CONFIG
+from codeflow.scanner import ProjectScanner
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -66,6 +40,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     init_parser.set_defaults(func=run_init)
 
+    scan_parser = subparsers.add_parser(
+        "scan",
+        help="Scan a project and write .codeflow/project_index.json.",
+    )
+    scan_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Project directory to scan. Defaults to the current directory.",
+    )
+    scan_parser.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Optional project_index.json output path.",
+    )
+    scan_parser.set_defaults(func=run_scan)
+
     return parser
 
 
@@ -81,6 +73,13 @@ def run_init(args: argparse.Namespace) -> int:
 
     config_path.write_text(DEFAULT_CONFIG, encoding="utf-8")
     print(f"Created {config_path}")
+    return 0
+
+
+def run_scan(args: argparse.Namespace) -> int:
+    output_path = Path(args.output).expanduser().resolve() if args.output else None
+    index_path = ProjectScanner().write_project_index(Path(args.path), output_path)
+    print(f"Created {index_path}")
     return 0
 
 
