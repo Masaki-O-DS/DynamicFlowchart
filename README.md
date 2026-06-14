@@ -2,7 +2,7 @@
 
 CodeFlow Viewer is a Python-first CLI tool for creating code understanding assets from Python and Streamlit projects.
 
-This repository currently contains the Phase 1 CLI foundation, Phase 2 project scanner, Phase 3 AST analyzer, Phase 4 Streamlit analyzer, Phase 5 storage/analyze command, and Phase 6 AI planning boundary.
+This repository currently contains the Phase 1 CLI foundation, Phase 2 project scanner, Phase 3 AST analyzer, Phase 4 Streamlit analyzer, Phase 5 storage/analyze command, Phase 6 AI planning boundary, and Phase 7 flow/explanation placeholders.
 
 ## Usage
 
