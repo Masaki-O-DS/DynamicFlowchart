@@ -1,7 +1,7 @@
 [project]
 name = "codeflow-viewer"
 version = "0.1.0"
-description = "Python project scanner and AST analyzer for CodeFlow Viewer."
+description = "Python, AST, and Streamlit analyzer for CodeFlow Viewer."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
