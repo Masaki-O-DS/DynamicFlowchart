@@ -218,7 +218,7 @@ class CliTests(unittest.TestCase):
             self.assertEqual(index["entrypoint"]["path"], "busy.py")
             self.assertEqual(index["entrypoint"]["reason"], "streamlit_api_count")
 
-    def test_analyze_writes_phase_five_artifacts(self) -> None:
+    def test_analyze_writes_storage_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "app.py").write_text(
@@ -238,6 +238,10 @@ class CliTests(unittest.TestCase):
                 "project_index.json",
                 "ast_index.json",
                 "streamlit_index.json",
+                "flow_blocks.json",
+                "function_summaries.json",
+                "line_explanations.json",
+                "explanation_versions.json",
                 "analysis_status.json",
                 "analysis_report.md",
                 "ai_plan.json",
@@ -251,14 +255,33 @@ class CliTests(unittest.TestCase):
             manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
             status = json.loads((output_dir / "analysis_status.json").read_text(encoding="utf-8"))
             ai_plan = json.loads((output_dir / "ai_plan.json").read_text(encoding="utf-8"))
+            flow_blocks = json.loads((output_dir / "flow_blocks.json").read_text(encoding="utf-8"))
+            function_summaries = json.loads((output_dir / "function_summaries.json").read_text(encoding="utf-8"))
+            line_explanations = json.loads((output_dir / "line_explanations.json").read_text(encoding="utf-8"))
+            explanation_versions = json.loads(
+                (output_dir / "explanation_versions.json").read_text(encoding="utf-8")
+            )
             report = (output_dir / "analysis_report.md").read_text(encoding="utf-8")
 
             self.assertIn("project_index.json", manifest["artifacts"])
+            self.assertIn("flow_blocks.json", manifest["artifacts"])
             self.assertEqual(status["status"], "completed")
+            self.assertEqual(status["artifacts"]["flow_blocks"], "pending_ai")
+            self.assertEqual(status["summary"]["flow_block_count"], 1)
             self.assertEqual(ai_plan["status"], "pending")
             self.assertEqual(ai_plan["model"]["default"], "GLM-5")
             self.assertFalse(ai_plan["model"]["auto_fallback"])
+            self.assertEqual(flow_blocks["summary"]["block_count"], 1)
+            self.assertEqual(flow_blocks["blocks"][0]["related_functions"], ["app.load"])
+            self.assertEqual(flow_blocks["blocks"][0]["status"], "pending_ai")
+            self.assertEqual(function_summaries["functions"][0]["function_id"], "app.load")
+            self.assertEqual(function_summaries["functions"][0]["status"], "pending_ai")
+            self.assertEqual(line_explanations["summary"]["function_count"], 1)
+            self.assertEqual(line_explanations["functions"][0]["line_items"][0]["status"], "pending_ai")
+            self.assertEqual(explanation_versions["status"], "empty")
+            self.assertEqual(explanation_versions["versions"], [])
             self.assertIn("CodeFlow Analysis Report", report)
+            self.assertIn("Flow blocks: 1", report)
 
     def test_plan_writes_ai_plan_without_calling_ai(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
