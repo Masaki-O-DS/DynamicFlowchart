@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from codeflow.ast_analyzer import AstAnalyzer
 from codeflow import __version__
 from codeflow.config import DEFAULT_CONFIG
 from codeflow.scanner import ProjectScanner
@@ -58,6 +59,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     scan_parser.set_defaults(func=run_scan)
 
+    ast_parser = subparsers.add_parser(
+        "ast",
+        help="Analyze Python AST and write .codeflow/ast_index.json.",
+    )
+    ast_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Project directory to analyze. Defaults to the current directory.",
+    )
+    ast_parser.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Optional ast_index.json output path.",
+    )
+    ast_parser.set_defaults(func=run_ast)
+
     return parser
 
 
@@ -79,6 +98,13 @@ def run_init(args: argparse.Namespace) -> int:
 def run_scan(args: argparse.Namespace) -> int:
     output_path = Path(args.output).expanduser().resolve() if args.output else None
     index_path = ProjectScanner().write_project_index(Path(args.path), output_path)
+    print(f"Created {index_path}")
+    return 0
+
+
+def run_ast(args: argparse.Namespace) -> int:
+    output_path = Path(args.output).expanduser().resolve() if args.output else None
+    index_path = AstAnalyzer().write_ast_index(Path(args.path), output_path)
     print(f"Created {index_path}")
     return 0
 

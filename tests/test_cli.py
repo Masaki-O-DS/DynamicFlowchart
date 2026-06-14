@@ -65,6 +65,48 @@ class CliTests(unittest.TestCase):
             self.assertEqual(excluded[".codex"], "excluded_directory")
             self.assertEqual(excluded[".streamlit/secrets.toml"], "excluded_file_pattern")
 
+    def test_ast_writes_index_and_keeps_going_after_syntax_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "app.py").write_text(
+                "import os\n"
+                "from pathlib import Path\n\n"
+                "def helper(value: int) -> str:\n"
+                "    return str(value)\n\n"
+                "class Runner:\n"
+                "    def run(self):\n"
+                "        return helper(1)\n",
+                encoding="utf-8",
+            )
+            (root / "broken.py").write_text("def broken(:\n    pass\n", encoding="utf-8")
+
+            self.assertEqual(main(["ast", temp_dir]), 0)
+
+            index_path = root / ".codeflow" / "ast_index.json"
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+            functions = {item["qualified_name"]: item for item in index["functions"]}
+
+            self.assertEqual(index["summary"]["function_count"], 2)
+            self.assertEqual(index["summary"]["error_count"], 1)
+            self.assertIn("helper", functions)
+            self.assertIn("Runner.run", functions)
+            self.assertEqual(functions["helper"]["start_line"], 4)
+            self.assertEqual(functions["helper"]["end_line"], 5)
+            self.assertIn("return str(value)", functions["helper"]["code"])
+            self.assertIn("str", functions["helper"]["called_functions"])
+            self.assertIn("helper", functions["Runner.run"]["called_functions"])
+            self.assertEqual(functions["helper"]["function_id"], "app.helper")
+            self.assertEqual(functions["Runner.run"]["function_id"], "app.Runner.run")
+            self.assertTrue(functions["helper"]["code_hash"])
+            self.assertTrue(functions["helper"]["signature_hash"])
+            self.assertTrue(functions["helper"]["call_hash"])
+            self.assertTrue(functions["helper"]["dependency_hash"])
+            self.assertEqual(index["imports"]["app.py"][0]["module"], "os")
+            self.assertEqual(index["imports"]["app.py"][1]["module"], "pathlib")
+            self.assertEqual(index["imports"]["app.py"][1]["name"], "Path")
+            self.assertEqual(index["errors"][0]["file"], "broken.py")
+            self.assertEqual(index["errors"][0]["error_type"], "SyntaxError")
+
 
 if __name__ == "__main__":
     unittest.main()
