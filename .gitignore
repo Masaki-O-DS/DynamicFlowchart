@@ -66,6 +66,7 @@ agents/skills/
 __pycache__/
 *.py[cod]
 *.egg-info/
+.codeflow/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

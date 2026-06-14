@@ -10,6 +10,7 @@ from codeflow.ast_analyzer import AstAnalyzer
 from codeflow import __version__
 from codeflow.config import DEFAULT_CONFIG
 from codeflow.scanner import ProjectScanner
+from codeflow.storage import StorageBuilder
 from codeflow.streamlit_analyzer import StreamlitAnalyzer
 
 
@@ -101,6 +102,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     streamlit_parser.set_defaults(func=run_streamlit)
 
+    analyze_parser = subparsers.add_parser(
+        "analyze",
+        help="Run analysis and write .codeflow artifacts.",
+    )
+    analyze_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Project directory to analyze. Defaults to the current directory.",
+    )
+    analyze_parser.add_argument(
+        "--entry",
+        default=None,
+        help="Optional Streamlit entrypoint path.",
+    )
+    analyze_parser.set_defaults(func=run_analyze)
+
     return parser
 
 
@@ -141,6 +159,13 @@ def run_streamlit(args: argparse.Namespace) -> int:
         output_path=output_path,
     )
     print(f"Created {index_path}")
+    return 0
+
+
+def run_analyze(args: argparse.Namespace) -> int:
+    result = StorageBuilder().analyze(Path(args.path), entry=args.entry)
+    output_dir = result["output_dir"]
+    print(f"Created {output_dir}")
     return 0
 
 
