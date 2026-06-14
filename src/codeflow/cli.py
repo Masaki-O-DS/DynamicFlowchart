@@ -10,6 +10,7 @@ from codeflow.ast_analyzer import AstAnalyzer
 from codeflow import __version__
 from codeflow.config import DEFAULT_CONFIG
 from codeflow.scanner import ProjectScanner
+from codeflow.streamlit_analyzer import StreamlitAnalyzer
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -77,6 +78,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ast_parser.set_defaults(func=run_ast)
 
+    streamlit_parser = subparsers.add_parser(
+        "streamlit",
+        help="Analyze Streamlit usage and write .codeflow/streamlit_index.json.",
+    )
+    streamlit_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Project directory to analyze. Defaults to the current directory.",
+    )
+    streamlit_parser.add_argument(
+        "--entry",
+        default=None,
+        help="Optional Streamlit entrypoint path.",
+    )
+    streamlit_parser.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Optional streamlit_index.json output path.",
+    )
+    streamlit_parser.set_defaults(func=run_streamlit)
+
     return parser
 
 
@@ -105,6 +129,17 @@ def run_scan(args: argparse.Namespace) -> int:
 def run_ast(args: argparse.Namespace) -> int:
     output_path = Path(args.output).expanduser().resolve() if args.output else None
     index_path = AstAnalyzer().write_ast_index(Path(args.path), output_path)
+    print(f"Created {index_path}")
+    return 0
+
+
+def run_streamlit(args: argparse.Namespace) -> int:
+    output_path = Path(args.output).expanduser().resolve() if args.output else None
+    index_path = StreamlitAnalyzer().write_streamlit_index(
+        Path(args.path),
+        entry=args.entry,
+        output_path=output_path,
+    )
     print(f"Created {index_path}")
     return 0
 
