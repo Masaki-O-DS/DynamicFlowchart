@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+import io
 import json
 import tempfile
 import unittest
@@ -317,6 +319,39 @@ class CliTests(unittest.TestCase):
             cached_plan = json.loads(ai_plan_path.read_text(encoding="utf-8"))
             self.assertEqual(cached_plan["cache_reuse"]["function_count"], 2)
             self.assertEqual(cached_plan["planned_calls"]["total"], 0)
+
+    def test_serve_dry_run_reads_saved_artifacts_without_calling_ai(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "app.py").write_text(
+                "def load():\n"
+                "    return 1\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(main(["analyze", temp_dir]), 0)
+
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                result = main(["serve", temp_dir, "--dry-run", "--port", "9876"])
+
+            output = buffer.getvalue()
+            self.assertEqual(result, 0)
+            self.assertIn("Starting CodeFlow Viewer", output)
+            self.assertIn("AI execution: not executed", output)
+            self.assertIn("http://localhost:9876", output)
+            self.assertIn("streamlit run", output)
+
+    def test_serve_reports_missing_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                result = main(["serve", temp_dir, "--dry-run"])
+
+            output = buffer.getvalue()
+            self.assertEqual(result, 1)
+            self.assertIn("Missing data directory", output)
+            self.assertIn("Run codeflow analyze before codeflow serve.", output)
 
 
 if __name__ == "__main__":

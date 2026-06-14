@@ -11,6 +11,7 @@ from codeflow.ast_analyzer import AstAnalyzer
 from codeflow import __version__
 from codeflow.config import DEFAULT_CONFIG
 from codeflow.scanner import ProjectScanner
+from codeflow.serve import ServeLauncher
 from codeflow.storage import StorageBuilder
 from codeflow.streamlit_analyzer import StreamlitAnalyzer
 
@@ -120,6 +121,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
     analyze_parser.set_defaults(func=run_analyze)
 
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help="Open saved .codeflow artifacts in the Streamlit viewer without calling AI.",
+    )
+    serve_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Project directory to view. Defaults to the current directory.",
+    )
+    serve_parser.add_argument(
+        "--host",
+        default="localhost",
+        help="Host address for Streamlit. Defaults to localhost.",
+    )
+    serve_parser.add_argument(
+        "--port",
+        type=int,
+        default=8501,
+        help="Port for Streamlit. Defaults to 8501.",
+    )
+    serve_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate artifacts and print the launch command without starting Streamlit.",
+    )
+    serve_parser.set_defaults(func=run_serve)
+
     plan_parser = subparsers.add_parser(
         "plan",
         help="Plan AI work without calling AI and write .codeflow/ai_plan.json.",
@@ -186,6 +215,12 @@ def run_analyze(args: argparse.Namespace) -> int:
     output_dir = result["output_dir"]
     print(f"Created {output_dir}")
     return 0
+
+
+def run_serve(args: argparse.Namespace) -> int:
+    launcher = ServeLauncher()
+    plan = launcher.build_plan(Path(args.path), host=args.host, port=args.port)
+    return launcher.run(plan, dry_run=bool(args.dry_run))
 
 
 def run_plan(args: argparse.Namespace) -> int:
