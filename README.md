@@ -2,8 +2,7 @@
 
 CodeFlow Viewer is a Python-first CLI tool for creating code understanding assets from Python and Streamlit projects.
 
-This repository currently contains the Phase 1 CLI foundation.
-It also includes the Phase 2 project scanner.
+This repository currently contains the Phase 1 CLI foundation, Phase 2 project scanner, and Phase 3 AST analyzer.
 
 ## Usage
 
@@ -12,6 +11,7 @@ python3 -m pip install -e .
 codeflow --help
 codeflow init
 codeflow scan .
+codeflow ast .
 ```
 
 If an older pip tries to download build tools during editable install, use the legacy local path:
@@ -26,4 +26,5 @@ Development checks can also run directly from the source tree:
 PYTHONPATH=src python3 -m codeflow --help
 PYTHONPATH=src python3 -m codeflow init
 PYTHONPATH=src python3 -m codeflow scan .
+PYTHONPATH=src python3 -m codeflow ast .
 ```
