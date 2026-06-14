@@ -218,6 +218,47 @@ class CliTests(unittest.TestCase):
             self.assertEqual(index["entrypoint"]["path"], "busy.py")
             self.assertEqual(index["entrypoint"]["reason"], "streamlit_api_count")
 
+    def test_analyze_writes_phase_five_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "app.py").write_text(
+                "import streamlit as st\n\n"
+                "def load():\n"
+                "    return 1\n\n"
+                "st.title('Demo')\n"
+                "st.write(load())\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(main(["analyze", temp_dir, "--entry", "app.py"]), 0)
+
+            output_dir = root / ".codeflow"
+            expected_files = {
+                "manifest.json",
+                "project_index.json",
+                "ast_index.json",
+                "streamlit_index.json",
+                "analysis_status.json",
+                "analysis_report.md",
+                "ai_plan.json",
+            }
+            self.assertEqual({path.name for path in output_dir.iterdir()}, expected_files)
+
+            for file_name in expected_files - {"analysis_report.md"}:
+                payload = json.loads((output_dir / file_name).read_text(encoding="utf-8"))
+                self.assertEqual(payload["schema_version"], "0.7.0")
+
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+            status = json.loads((output_dir / "analysis_status.json").read_text(encoding="utf-8"))
+            ai_plan = json.loads((output_dir / "ai_plan.json").read_text(encoding="utf-8"))
+            report = (output_dir / "analysis_report.md").read_text(encoding="utf-8")
+
+            self.assertIn("project_index.json", manifest["artifacts"])
+            self.assertEqual(status["status"], "completed")
+            self.assertEqual(ai_plan["status"], "pending")
+            self.assertEqual(ai_plan["default_model"], "GLM-5")
+            self.assertIn("CodeFlow Analysis Report", report)
+
 
 if __name__ == "__main__":
     unittest.main()
