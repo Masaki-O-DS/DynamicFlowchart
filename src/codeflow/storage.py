@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 
+from codeflow.ai_plan import AiPlanBuilder
 from codeflow import __version__
 from codeflow.ast_analyzer import AstAnalyzer
 from codeflow.config import SCHEMA_VERSION
@@ -28,7 +29,7 @@ class StorageBuilder:
 
         manifest = self._manifest(root, generated_at, entry)
         analysis_status = self._analysis_status(project_index, ast_index, streamlit_index, generated_at)
-        ai_plan = self._ai_plan(ast_index, generated_at)
+        ai_plan = AiPlanBuilder().build(root, ast_index=ast_index, generated_at=generated_at)
         report = self._analysis_report(project_index, ast_index, streamlit_index)
 
         written_files = {
@@ -93,26 +94,6 @@ class StorageBuilder:
                 "streamlit_file_count": dict(streamlit_index["summary"])["streamlit_file_count"],
                 "error_count": ast_errors + streamlit_errors,
             },
-        }
-
-    def _ai_plan(self, ast_index: dict[str, object], generated_at: str) -> dict[str, object]:
-        function_count = int(dict(ast_index["summary"])["function_count"])
-        return {
-            "schema_version": SCHEMA_VERSION,
-            "codeflow_version": __version__,
-            "created_at": generated_at,
-            "status": "pending",
-            "default_model": "GLM-5",
-            "auto_fallback": False,
-            "planned_calls": {
-                "function_summaries": function_count,
-                "line_explanations": function_count,
-                "total": function_count * 2,
-            },
-            "notes": [
-                "AI execution is not implemented in Phase 5.",
-                "Viewing and exporting stored artifacts must not call AI.",
-            ],
         }
 
     def _analysis_report(

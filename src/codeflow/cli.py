@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from codeflow.ai_plan import AiPlanBuilder
 from codeflow.ast_analyzer import AstAnalyzer
 from codeflow import __version__
 from codeflow.config import DEFAULT_CONFIG
@@ -119,6 +120,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     analyze_parser.set_defaults(func=run_analyze)
 
+    plan_parser = subparsers.add_parser(
+        "plan",
+        help="Plan AI work without calling AI and write .codeflow/ai_plan.json.",
+    )
+    plan_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Project directory to plan. Defaults to the current directory.",
+    )
+    plan_parser.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Optional ai_plan.json output path.",
+    )
+    plan_parser.set_defaults(func=run_plan)
+
     return parser
 
 
@@ -166,6 +185,14 @@ def run_analyze(args: argparse.Namespace) -> int:
     result = StorageBuilder().analyze(Path(args.path), entry=args.entry)
     output_dir = result["output_dir"]
     print(f"Created {output_dir}")
+    return 0
+
+
+def run_plan(args: argparse.Namespace) -> int:
+    output_path = Path(args.output).expanduser().resolve() if args.output else None
+    builder = AiPlanBuilder()
+    plan_path, plan = builder.write_plan(Path(args.path), output_path)
+    print(builder.format_summary(plan, plan_path))
     return 0
 
 
