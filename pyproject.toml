@@ -1,7 +1,7 @@
 [project]
 name = "codeflow-viewer"
 version = "0.1.0"
-description = "Python project analysis artifacts for CodeFlow Viewer."
+description = "Python project analysis and AI planning for CodeFlow Viewer."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [

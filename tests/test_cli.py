@@ -256,8 +256,44 @@ class CliTests(unittest.TestCase):
             self.assertIn("project_index.json", manifest["artifacts"])
             self.assertEqual(status["status"], "completed")
             self.assertEqual(ai_plan["status"], "pending")
-            self.assertEqual(ai_plan["default_model"], "GLM-5")
+            self.assertEqual(ai_plan["model"]["default"], "GLM-5")
+            self.assertFalse(ai_plan["model"]["auto_fallback"])
             self.assertIn("CodeFlow Analysis Report", report)
+
+    def test_plan_writes_ai_plan_without_calling_ai(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "app.py").write_text(
+                "def load():\n"
+                "    return 1\n\n"
+                "def render():\n"
+                "    return load()\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(main(["plan", temp_dir]), 0)
+
+            ai_plan_path = root / ".codeflow" / "ai_plan.json"
+            plan = json.loads(ai_plan_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(plan["schema_version"], "0.7.0")
+            self.assertEqual(plan["status"], "pending")
+            self.assertEqual(plan["model"]["default"], "GLM-5")
+            self.assertFalse(plan["model"]["auto_fallback"])
+            self.assertFalse(plan["ai_adapter"]["configured"])
+            self.assertEqual(plan["ai_adapter"]["status"], "pending")
+            self.assertEqual(plan["targets"]["function_count"], 2)
+            self.assertEqual(plan["planned_calls"]["function_summaries"], 2)
+            self.assertEqual(plan["planned_calls"]["line_explanations"], 2)
+            self.assertEqual(plan["planned_calls"]["natural_language_flow"], 1)
+            self.assertEqual(plan["planned_calls"]["total"], 5)
+            self.assertEqual(plan["cache_reuse"]["function_count"], 0)
+
+            self.assertEqual(main(["analyze", temp_dir]), 0)
+            self.assertEqual(main(["plan", temp_dir]), 0)
+            cached_plan = json.loads(ai_plan_path.read_text(encoding="utf-8"))
+            self.assertEqual(cached_plan["cache_reuse"]["function_count"], 2)
+            self.assertEqual(cached_plan["planned_calls"]["total"], 0)
 
 
 if __name__ == "__main__":
