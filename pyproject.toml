@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codeflow-viewer"
+version = "0.1.0"
+description = "CLI foundation for CodeFlow Viewer."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "MASA" }
+]
+dependencies = []
+
+[project.scripts]
+codeflow = "codeflow.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
