@@ -18,6 +18,7 @@ REQUIRED_ARTIFACTS = (
     "flow_blocks.json",
     "function_summaries.json",
     "line_explanations.json",
+    "explanation_versions.json",
     "analysis_status.json",
     "ai_plan.json",
 )
